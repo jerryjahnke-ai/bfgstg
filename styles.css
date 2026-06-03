@@ -719,6 +719,14 @@ h1 {
   outline-offset: 3px;
 }
 
+mark.search-highlight {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: #ffe36e;
+  color: #18211f;
+  box-shadow: 0 0 0 1px rgba(161, 104, 22, 0.24);
+}
+
 .back-top {
   position: fixed;
   right: 18px;

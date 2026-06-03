@@ -382,6 +382,10 @@ h1 {
   word-break: break-all;
 }
 
+.info-card a + p {
+  margin-top: 12px;
+}
+
 .card-kicker {
   margin-bottom: 12px;
   color: #475b55;

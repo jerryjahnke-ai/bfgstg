@@ -9,6 +9,20 @@ const sections = Array.from(document.querySelectorAll("[data-search-section]"));
 const backTop = document.querySelector("#back-top");
 const searchRoot = document.querySelector("#main");
 
+document.querySelectorAll('a[href^="#"]').forEach((link) => {
+  link.addEventListener("click", (event) => {
+    const targetId = link.getAttribute("href")?.slice(1);
+    const target = targetId ? document.getElementById(targetId) : null;
+    if (!target) return;
+
+    event.preventDefault();
+    const headerHeight = document.querySelector(".site-header")?.offsetHeight || 0;
+    const top = targetId === "top" ? 0 : target.getBoundingClientRect().top + window.scrollY - headerHeight;
+    window.scrollTo({ top, behavior: "smooth" });
+    history.pushState(null, "", `#${targetId}`);
+  });
+});
+
 const normalize = (value) =>
   value
     .replace(/\s+/g, "")

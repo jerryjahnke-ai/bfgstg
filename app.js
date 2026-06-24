@@ -5,22 +5,150 @@ const resultCount = document.querySelector("#result-count");
 const resultList = document.querySelector("#result-list");
 const searchableItems = Array.from(document.querySelectorAll("[data-searchable]"));
 const navLinks = Array.from(document.querySelectorAll(".top-nav a"));
-const sections = Array.from(document.querySelectorAll("[data-search-section]"));
+const navTargets = navLinks
+  .map((link) => document.getElementById((link.getAttribute("href") || "").slice(1)))
+  .filter(Boolean);
 const backTop = document.querySelector("#back-top");
 const searchRoot = document.querySelector("#main");
 
+if ("scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
+function decodeHash(value) {
+  try {
+    return decodeURIComponent(value.replace(/^#/, ""));
+  } catch {
+    return value.replace(/^#/, "");
+  }
+}
+
+function getHeaderHeight() {
+  return document.querySelector(".site-header")?.offsetHeight || 0;
+}
+
+function targetIdFromLink(link) {
+  const href = link.getAttribute("href") || "";
+  if (!href.startsWith("#")) return "";
+  return decodeHash(href);
+}
+
+function targetIdFromLocation() {
+  const targetId = decodeHash(window.location.hash);
+  return targetId && document.getElementById(targetId) ? targetId : "";
+}
+
+function setActiveNav(targetId, reveal = false) {
+  let activeLink = null;
+
+  navLinks.forEach((link) => {
+    const isActive = targetIdFromLink(link) === targetId;
+    link.classList.toggle("is-active", isActive);
+    if (isActive) {
+      link.setAttribute("aria-current", "location");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+    if (isActive) activeLink = link;
+  });
+
+  if (activeLink && reveal) {
+    activeLink.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+}
+
+function forceScrollTop(top) {
+  const scroller = document.scrollingElement || document.documentElement;
+  scroller.scrollTop = top;
+  window.scrollTo(0, top);
+}
+
+function scrollPageTo(top, behavior) {
+  const startY = window.scrollY;
+  const enforceTarget = () => {
+    if (Math.abs(window.scrollY - top) > 18) forceScrollTop(top);
+  };
+
+  try {
+    window.scrollTo({ top, behavior });
+  } catch {
+    forceScrollTop(top);
+  }
+
+  if (behavior !== "smooth") {
+    requestAnimationFrame(enforceTarget);
+    window.setTimeout(enforceTarget, 80);
+    window.setTimeout(enforceTarget, 240);
+    window.setTimeout(enforceTarget, 760);
+    window.setTimeout(enforceTarget, 1040);
+    return;
+  }
+
+  window.setTimeout(() => {
+    const didNotMove = Math.abs(window.scrollY - startY) < 4;
+    if (didNotMove && Math.abs(window.scrollY - top) > 24) forceScrollTop(top);
+  }, 260);
+  window.setTimeout(enforceTarget, 720);
+  window.setTimeout(enforceTarget, 1040);
+}
+
+function scrollToTarget(targetId, behavior = "smooth", revealNav = true) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+
+  const top =
+    targetId === "top"
+      ? 0
+      : Math.max(0, target.getBoundingClientRect().top + window.scrollY - getHeaderHeight() - 8);
+
+  setActiveNav(targetId, revealNav);
+  scrollPageTo(top, behavior);
+}
+
+function navigateToTarget(targetId, options = {}) {
+  const { push = true, behavior = "smooth", revealNav = true } = options;
+  const target = document.getElementById(targetId);
+  if (!target) return;
+
+  const nextHash = `#${encodeURIComponent(targetId)}`;
+  if (push && window.location.hash !== nextHash) {
+    history.pushState({ sectionId: targetId }, "", nextHash);
+  } else if (!history.state?.sectionId) {
+    history.replaceState({ sectionId: targetId }, "", window.location.href);
+  }
+
+  scrollToTarget(targetId, behavior, revealNav);
+}
+
 document.querySelectorAll('a[href^="#"]').forEach((link) => {
   link.addEventListener("click", (event) => {
-    const targetId = link.getAttribute("href")?.slice(1);
-    const target = targetId ? document.getElementById(targetId) : null;
-    if (!target) return;
+    const targetId = targetIdFromLink(link);
+    if (!targetId || !document.getElementById(targetId)) return;
 
     event.preventDefault();
-    const headerHeight = document.querySelector(".site-header")?.offsetHeight || 0;
-    const top = targetId === "top" ? 0 : target.getBoundingClientRect().top + window.scrollY - headerHeight;
-    window.scrollTo({ top, behavior: "smooth" });
-    history.pushState(null, "", `#${targetId}`);
+    navigateToTarget(targetId);
   });
+});
+
+const initialTargetId = targetIdFromLocation() || "top";
+if (!history.state?.sectionId) {
+  history.replaceState({ sectionId: initialTargetId }, "", window.location.href);
+}
+
+if (window.location.hash) {
+  requestAnimationFrame(() => scrollToTarget(initialTargetId, "auto", true));
+}
+
+window.addEventListener("popstate", (event) => {
+  const stateId = event.state?.sectionId;
+  const hashId = targetIdFromLocation();
+  const targetId = hashId || (stateId && document.getElementById(stateId) ? stateId : "top");
+  scrollToTarget(targetId, "auto", true);
+});
+
+window.addEventListener("hashchange", () => {
+  const targetId = targetIdFromLocation();
+  if (targetId) scrollToTarget(targetId, "auto", true);
 });
 
 const normalize = (value) =>
@@ -293,28 +421,39 @@ clearButton.addEventListener("click", () => {
 });
 
 backTop.addEventListener("click", () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  navigateToTarget("top", { push: true, behavior: "smooth", revealNav: false });
 });
 
-window.addEventListener("scroll", () => {
-  backTop.classList.toggle("is-visible", window.scrollY > 520);
-});
+function currentNavTargetId() {
+  const marker = window.scrollY + getHeaderHeight() + Math.min(180, window.innerHeight * 0.24);
+  let currentId = "";
 
-const observer = new IntersectionObserver(
-  (entries) => {
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if (!visible) return;
+  navTargets.forEach((section) => {
+    if (section.offsetTop <= marker) currentId = section.id;
+  });
 
-    navLinks.forEach((link) => {
-      const target = link.getAttribute("href")?.slice(1);
-      link.classList.toggle("is-active", target === visible.target.id);
-    });
+  return currentId;
+}
+
+let navSyncPending = false;
+function requestNavSync() {
+  if (navSyncPending) return;
+  navSyncPending = true;
+
+  requestAnimationFrame(() => {
+    navSyncPending = false;
+    setActiveNav(currentNavTargetId(), false);
+  });
+}
+
+window.addEventListener(
+  "scroll",
+  () => {
+    backTop.classList.toggle("is-visible", window.scrollY > 520);
+    requestNavSync();
   },
-  { rootMargin: "-20% 0px -65% 0px", threshold: [0.1, 0.35, 0.6] },
+  { passive: true },
 );
 
-sections.forEach((section) => {
-  if (section.id) observer.observe(section);
-});
+window.addEventListener("resize", requestNavSync);
+requestNavSync();

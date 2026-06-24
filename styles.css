@@ -25,6 +25,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 88px;
 }
 
 body {
@@ -115,8 +116,12 @@ img {
 }
 
 .top-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   color: #31413d;
+  min-height: 40px;
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 14px;
@@ -940,7 +945,19 @@ mark.search-highlight {
 }
 
 @media (max-width: 680px) {
+  html {
+    scroll-padding-top: 118px;
+  }
+
+  .header-inner {
+    width: 100%;
+    gap: 8px;
+    padding: 10px 0 0;
+  }
+
   .brand {
+    width: calc(100% - 32px);
+    margin: 0 16px;
     min-width: 0;
   }
 
@@ -949,11 +966,27 @@ mark.search-highlight {
   }
 
   .top-nav {
-    gap: 4px;
+    width: 100%;
+    gap: 8px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 0 16px 10px;
+    scroll-padding-inline: 16px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .top-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .top-nav a {
-    padding: 7px 9px;
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 7px 12px;
+    scroll-snap-align: center;
   }
 
   .hero {
